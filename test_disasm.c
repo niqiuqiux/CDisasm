@@ -101,6 +101,17 @@ static const uint32_t test_instructions[] = {
     0xD65F03C0,  // ret
     0xD65F0000,  // ret x0
     
+    // === MRS 系统寄存器 ===
+    0xD5384100,  // mrs x0, sp_el0
+    0xD53C4101,  // mrs x1, sp_el1
+    0xD53E4102,  // mrs x2, sp_el2
+    0xD53C4003,  // mrs x3, spsr_el2
+    0xD53C4024,  // mrs x4, elr_el2
+    0xD53BD045,  // mrs x5, tpidr_el0
+    0xD538D086,  // mrs x6, tpidr_el1
+    0xD53CD047,  // mrs x7, tpidr_el2
+    0xD53ED048,  // mrs x8, tpidr_el3
+    
     // === 系统指令 ===
     0xD503201F,  // nop
     0xD503203F,  // yield
@@ -234,6 +245,26 @@ static void test_branch_instructions(void) {
 }
 
 /**
+ * 测试MRS系统寄存器读取
+ */
+static void test_mrs_instructions(void) {
+    printf("\n========== 测试MRS指令 ==========\n\n");
+    
+    uint32_t test_cases[] = {
+        0xD5384100,  // mrs x0, sp_el0
+        0xD53C4101,  // mrs x1, sp_el1
+        0xD53E4102,  // mrs x2, sp_el2
+        0xD53BD045,  // mrs x5, tpidr_el0
+        0xD53C4003,  // mrs x3, spsr_el2
+        0xD53C4024,  // mrs x4, elr_el2
+    };
+    
+    for (size_t i = 0; i < sizeof(test_cases) / sizeof(test_cases[0]); i++) {
+        test_single_instruction(test_cases[i], 0x5000 + i * 4);
+    }
+}
+
+/**
  * 测试详细信息输出
  */
 static void test_detailed_output(void) {
@@ -281,6 +312,7 @@ int main(int argc, char *argv[]) {
     test_mov_instructions();
     test_arithmetic_instructions();
     test_branch_instructions();
+    test_mrs_instructions();
     test_detailed_output();
     
     // 批量反汇编测试

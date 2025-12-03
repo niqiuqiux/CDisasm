@@ -100,15 +100,8 @@ static void format_register_operand(const disasm_inst_t *inst, char *buffer, siz
     char reg_name[16];
     get_register_name(reg_num, reg_type, reg_name);
     
-    // 如果寄存器31且不是栈指针操作，可能是SP
-    if (reg_num == 31 && reg_type == REG_TYPE_X) {
-        // 某些指令使用SP而不是XZR
-        if (inst->type == INST_TYPE_LDR || inst->type == INST_TYPE_STR ||
-            inst->type == INST_TYPE_ADD || inst->type == INST_TYPE_SUB) {
-            strcpy(reg_name, "sp");
-        }
-    }
-    
+    // 现在完全由解码阶段决定寄存器类型（X/W vs SP/XZR/WZR），
+    // 这里不再根据指令类型进行启发式修改，避免将应为XZR/WZR的寄存器误打印为SP。
     snprintf(buffer, size, "%s", reg_name);
 }
 
@@ -172,6 +165,62 @@ static void format_memory_operand(const disasm_inst_t *inst, char *buffer, size_
             snprintf(buffer, size, "[%s]", base_reg);
             break;
     }
+}
+
+typedef struct {
+    uint8_t op0;
+    uint8_t op1;
+    uint8_t crn;
+    uint8_t crm;
+    uint8_t op2;
+    const char *name;
+} sys_reg_info_t;
+
+static const sys_reg_info_t system_reg_map[] = {
+    {3, 3, 4, 2, 0, "NZCV"},
+    {3, 3, 4, 2, 1, "DAIF"},
+    {3, 0, 4, 2, 2, "CurrentEL"},
+    {3, 0, 4, 2, 0, "SPSel"},
+    
+    {3, 0, 4, 1, 0, "SP_EL0"},
+    {3, 4, 4, 1, 0, "SP_EL1"},
+    {3, 6, 4, 1, 0, "SP_EL2"},
+    {3, 7, 4, 1, 0, "SP_EL3"},
+    
+    {3, 0, 4, 0, 0, "SPSR_EL1"},
+    {3, 0, 4, 0, 1, "ELR_EL1"},
+    {3, 4, 4, 0, 0, "SPSR_EL2"},
+    {3, 4, 4, 0, 1, "ELR_EL2"},
+    {3, 5, 4, 0, 0, "SPSR_EL12"},
+    {3, 5, 4, 0, 1, "ELR_EL12"},
+    {3, 6, 4, 0, 0, "SPSR_EL3"},
+    {3, 6, 4, 0, 1, "ELR_EL3"},
+    
+    {3, 3, 13, 0, 2, "TPIDR_EL0"},
+    {3, 3, 13, 0, 3, "TPIDRRO_EL0"},
+    {3, 3, 13, 0, 5, "TPIDR2_EL0"},
+    {3, 0, 13, 0, 4, "TPIDR_EL1"},
+    {3, 4, 13, 0, 2, "TPIDR_EL2"},
+    {3, 6, 13, 0, 2, "TPIDR_EL3"},
+    
+    {3, 3, 4, 4, 0, "FPCR"},
+    {3, 3, 4, 4, 1, "FPSR"}
+};
+
+/**
+ * 获取系统寄存器名称（用于MRS解码）
+ * 支持的寄存器收录在system_reg_map表中，其余使用通用编码格式。
+ */
+static const char* get_system_reg_name(uint8_t op0, uint8_t op1,
+                                       uint8_t crn, uint8_t crm, uint8_t op2) {
+    for (size_t i = 0; i < sizeof(system_reg_map) / sizeof(system_reg_map[0]); i++) {
+        const sys_reg_info_t *info = &system_reg_map[i];
+        if (info->op0 == op0 && info->op1 == op1 &&
+            info->crn == crn && info->crm == crm && info->op2 == op2) {
+            return info->name;
+        }
+    }
+    return NULL;
 }
 
 /**
@@ -392,6 +441,27 @@ void format_instruction(const disasm_inst_t *inst, char *buffer, size_t buffer_s
             format_register_operand(inst, reg_src1, sizeof(reg_src1), inst->rn, inst->rn_type);
             format_register_operand(inst, reg_src2, sizeof(reg_src2), inst->rm, inst->rm_type);
             snprintf(operands, sizeof(operands), "%s, %s, %s", reg_dst, reg_src1, reg_src2);
+            break;
+        }
+
+        // MRS 系统寄存器读
+        case INST_TYPE_MRS: {
+            format_register_operand(inst, reg_dst, sizeof(reg_dst), inst->rd, inst->rd_type);
+            uint32_t raw = inst->raw;
+            uint8_t op0 = BITS(raw, 19, 20);
+            uint8_t op1 = BITS(raw, 16, 18);
+            uint8_t crn = BITS(raw, 12, 15);
+            uint8_t crm = BITS(raw, 8, 11);
+            uint8_t op2 = BITS(raw, 5, 7);
+            
+            const char *sys_name = get_system_reg_name(op0, op1, crn, crm, op2);
+            if (sys_name) {
+                snprintf(operands, sizeof(operands), "%s, %s", reg_dst, sys_name);
+            } else {
+                // 回退到通用编码形式：S<op0>_<op1>_C<crn>_C<crm>_<op2>
+                snprintf(operands, sizeof(operands), "%s, S%u_%u_C%u_C%u_%u",
+                         reg_dst, op0, op1, crn, crm, op2);
+            }
             break;
         }
         

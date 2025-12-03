@@ -65,7 +65,8 @@ typedef enum {
     INST_TYPE_MSUB,         // 乘减
     INST_TYPE_SDIV,         // 有符号除法
     INST_TYPE_UDIV,         // 无符号除法
-    INST_TYPE_NOP           // 空操作
+    INST_TYPE_NOP,          // 空操作
+    INST_TYPE_MRS           // 从系统寄存器读取（MRS）
 } inst_type_t;
 
 /* 寻址模式 */

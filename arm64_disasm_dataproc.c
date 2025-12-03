@@ -137,6 +137,18 @@ static bool decode_add_sub_immediate(uint32_t inst, uint64_t addr, disasm_inst_t
             strcpy(result->mnemonic, "cmn");
             result->type = INST_TYPE_CMN;
         }
+        // 对于设置标志位的别名指令，Rd=31 表示零寄存器而不是SP
+        result->rd_type = sf ? REG_TYPE_X : REG_TYPE_W;
+    }
+
+    // 对于不设置标志位的加/减指令，Rn/Rd 为 31 时表示对 SP 进行运算
+    if (!S) {
+        if (rn == 31) {
+            result->rn_type = REG_TYPE_SP;
+        }
+        if (rd == 31) {
+            result->rd_type = REG_TYPE_SP;
+        }
     }
     
     return true;
@@ -258,11 +270,25 @@ static bool decode_add_sub_shifted_register(uint32_t inst, uint64_t addr, disasm
             strcpy(result->mnemonic, "cmn");
             result->type = INST_TYPE_CMN;
         }
+        // Rd=31 时为零寄存器
+        result->rd_type = sf ? REG_TYPE_X : REG_TYPE_W;
     }
     
     // 特殊情况：NEG (Rn是XZR/WZR)
     if (op == 1 && rn == 31 && !S) {
         strcpy(result->mnemonic, "neg");
+        // 这里语义上使用零寄存器，而不是SP
+        result->rn_type = sf ? REG_TYPE_X : REG_TYPE_W;
+    }
+
+    // 对于普通的 ADD/SUB（不设置标志位，且不是 NEG 别名），Rn/Rd = 31 代表对 SP 进行运算
+    if (!S && !(op == 1 && rn == 31 && rd != 31)) {
+        if (rn == 31) {
+            result->rn_type = REG_TYPE_SP;
+        }
+        if (rd == 31) {
+            result->rd_type = REG_TYPE_SP;
+        }
     }
     
     return true;

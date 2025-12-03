@@ -202,12 +202,13 @@ static bool decode_unconditional_branch_reg(uint32_t inst, uint64_t addr, disasm
  * 包括NOP、HINT等
  */
 static bool decode_system(uint32_t inst, uint64_t addr, disasm_inst_t *result) {
-    uint8_t op0 = BITS(inst, 19, 21);
+    uint8_t op0 = BITS(inst, 19, 20);  // op0占据bits[20:19]
     uint8_t op1 = BITS(inst, 16, 18);
     uint8_t crn = BITS(inst, 12, 15);
     uint8_t crm = BITS(inst, 8, 11);
     uint8_t op2 = BITS(inst, 5, 7);
     uint8_t rt = BITS(inst, 0, 4);
+    uint8_t L = BIT(inst, 21);         // L=1 表示 MRS，L=0 表示 MSR
     
     // NOP和HINT指令
     if (op0 == 0 && op1 == 3 && crn == 2 && rt == 31) {  // 0b000, 0b011, 0b0010, 0b11111
@@ -241,6 +242,19 @@ static bool decode_system(uint32_t inst, uint64_t addr, disasm_inst_t *result) {
                     break;
             }
         }
+    }
+
+    // MRS 指令（从系统寄存器读到通用寄存器）
+    // 此处只做通用解码：识别为 MRS 并保留系统寄存器编码字段，
+    // 具体系统寄存器名称在格式化阶段通过编码字段构造。
+    if (L == 1 && rt != 31) {
+        result->rd = rt;
+        result->rd_type = REG_TYPE_X;
+        result->is_64bit = true;
+        result->has_imm = false;
+        strcpy(result->mnemonic, "mrs");
+        result->type = INST_TYPE_MRS;
+        return true;
     }
     
     return false;

@@ -246,13 +246,15 @@ void get_used_registers(const disasm_inst_t *inst,
     
     *count = 0;
     
-    // 添加目标寄存器
-    if (inst->rd < 31 && *count < max_count) {
-        regs[(*count)++] = inst->rd;
+    // 添加目标寄存器（包括对SP的使用）
+    if (*count < max_count) {
+        if (inst->rd < 31 || inst->rd_type == REG_TYPE_SP) {
+            regs[(*count)++] = inst->rd;
+        }
     }
     
     // 添加源寄存器
-    if (inst->rn < 31 && *count < max_count) {
+    if (*count < max_count && (inst->rn < 31 || inst->rn_type == REG_TYPE_SP)) {
         bool already_added = false;
         for (size_t i = 0; i < *count; i++) {
             if (regs[i] == inst->rn) {
@@ -266,7 +268,7 @@ void get_used_registers(const disasm_inst_t *inst,
     }
     
     // 添加第二源寄存器
-    if (inst->rm < 31 && *count < max_count) {
+    if (*count < max_count && (inst->rm < 31 || inst->rm_type == REG_TYPE_SP)) {
         bool already_added = false;
         for (size_t i = 0; i < *count; i++) {
             if (regs[i] == inst->rm) {
@@ -280,7 +282,7 @@ void get_used_registers(const disasm_inst_t *inst,
     }
     
     // 添加第二目标寄存器（LDP/STP）
-    if (inst->rt2 < 31 && *count < max_count) {
+    if (*count < max_count && (inst->rt2 < 31 || inst->rd_type == REG_TYPE_SP)) {
         bool already_added = false;
         for (size_t i = 0; i < *count; i++) {
             if (regs[i] == inst->rt2) {
