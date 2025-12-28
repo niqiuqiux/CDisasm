@@ -104,6 +104,42 @@ static const uint32_t test_instructions[] = {
     0xD65F03C0,  // ret
     0xD65F0000,  // ret x0
     
+    // === 条件选择指令 ===
+    0x9A800000,  // csel x0, x0, x0, eq
+    0x9A810420,  // csinc x0, x1, x1, eq
+    0xDA800000,  // csinv x0, x0, x0, eq
+    0xDA800400,  // csneg x0, x0, x0, eq
+    0x9A9F07E0,  // cset x0, ne
+    0xDA9F03E0,  // csetm x0, ne
+    0x9A800420,  // cinc x0, x1, ne (csinc x0, x1, x1, eq)
+    0xDA800020,  // cinv x0, x1, ne (csinv x0, x1, x1, eq)
+    0xDA800420,  // cneg x0, x1, ne (csneg x0, x1, x1, eq)
+    
+    // === 位操作指令 ===
+    0xDAC00000,  // rbit x0, x0
+    0xDAC00400,  // rev16 x0, x0
+    0xDAC00800,  // rev32 x0, x0
+    0xDAC00C00,  // rev x0, x0
+    0xDAC01000,  // clz x0, x0
+    0xDAC01400,  // cls x0, x0
+    0x93C00400,  // extr x0, x0, x0, #1
+    0x93C00000,  // ror x0, x0, #0
+    
+    // === 原子操作指令 ===
+    0xC85F7C00,  // ldxr x0, [x0]
+    0xC85FFC00,  // ldaxr x0, [x0]
+    0xC89FFC00,  // stlxr w0, x0, [x0]
+    0xC8DFFC00,  // ldar x0, [x0]
+    0xC89F7C00,  // stlr x0, [x0]
+    0xF8200020,  // ldadd x0, x0, [x1]
+    0xF8601020,  // ldaddal x0, x0, [x1]
+    0xF8201020,  // ldclr x0, x0, [x1]
+    0xF8202020,  // ldeor x0, x0, [x1]
+    0xF8203020,  // ldset x0, x0, [x1]
+    0xF8208020,  // swp x0, x0, [x1]
+    0x08A07C20,  // cas w0, w0, [x1]
+    0xC8A07C20,  // cas x0, x0, [x1]
+    
     // === MRS 系统寄存器 ===
     0xD5384100,  // mrs x0, sp_el0
     0xD53C4101,  // mrs x1, sp_el1
@@ -271,6 +307,97 @@ static void test_mrs_instructions(void) {
 }
 
 /**
+ * 测试条件选择指令
+ */
+static void test_cond_select_instructions(void) {
+    printf("\n========== 测试条件选择指令 ==========\n\n");
+    
+    uint32_t test_cases[] = {
+        0x9A800000,  // csel x0, x0, x0, eq
+        0x9A810020,  // csel x0, x1, x1, eq
+        0x9A810420,  // csinc x0, x1, x1, eq
+        0xDA800000,  // csinv x0, x0, x0, eq
+        0xDA800400,  // csneg x0, x0, x0, eq
+        0x9A9F07E0,  // cset x0, ne (csinc x0, xzr, xzr, eq)
+        0xDA9F03E0,  // csetm x0, ne (csinv x0, xzr, xzr, eq)
+        0x9A810420,  // cinc x0, x1, ne (csinc x0, x1, x1, eq)
+        0xDA810020,  // cinv x0, x1, ne (csinv x0, x1, x1, eq)
+        0xDA810420,  // cneg x0, x1, ne (csneg x0, x1, x1, eq)
+    };
+    
+    for (size_t i = 0; i < sizeof(test_cases) / sizeof(test_cases[0]); i++) {
+        test_single_instruction(test_cases[i], 0x6000 + i * 4);
+    }
+}
+
+/**
+ * 测试位操作指令
+ */
+static void test_bit_manipulation_instructions(void) {
+    printf("\n========== 测试位操作指令 ==========\n\n");
+    
+    uint32_t test_cases[] = {
+        0xDAC00000,  // rbit x0, x0
+        0xDAC00400,  // rev16 x0, x0
+        0xDAC00800,  // rev32 x0, x0
+        0xDAC00C00,  // rev x0, x0
+        0xDAC01000,  // clz x0, x0
+        0xDAC01400,  // cls x0, x0
+        0x5AC00000,  // rbit w0, w0
+        0x5AC01000,  // clz w0, w0
+        0x93C00400,  // extr x0, x0, x0, #1
+        0x93C10820,  // extr x0, x1, x1, #2
+    };
+    
+    for (size_t i = 0; i < sizeof(test_cases) / sizeof(test_cases[0]); i++) {
+        test_single_instruction(test_cases[i], 0x7000 + i * 4);
+    }
+}
+
+/**
+ * 测试原子操作指令
+ */
+static void test_atomic_instructions(void) {
+    printf("\n========== 测试原子操作指令 ==========\n\n");
+    
+    uint32_t test_cases[] = {
+        // 独占加载/存储
+        0xC85F7C00,  // ldxr x0, [x0]
+        0xC85FFC00,  // ldaxr x0, [x0]
+        0xC8007C00,  // stxr w0, x0, [x0]
+        0xC800FC00,  // stlxr w0, x0, [x0]
+        0xC8DFFC00,  // ldar x0, [x0]
+        0xC89FFC00,  // stlr x0, [x0]
+        
+        // 字节/半字版本
+        0x085F7C00,  // ldxrb w0, [x0]
+        0x485F7C00,  // ldxrh w0, [x0]
+        
+        // 原子内存操作 (ARMv8.1)
+        0xF8200020,  // ldadd x0, x0, [x1]
+        0xF8601020,  // ldaddal x0, x0, [x1]
+        0xF8201020,  // ldclr x0, x0, [x1]
+        0xF8202020,  // ldeor x0, x0, [x1]
+        0xF8203020,  // ldset x0, x0, [x1]
+        0xF8204020,  // ldsmax x0, x0, [x1]
+        0xF8205020,  // ldsmin x0, x0, [x1]
+        0xF8206020,  // ldumax x0, x0, [x1]
+        0xF8207020,  // ldumin x0, x0, [x1]
+        0xF8208020,  // swp x0, x0, [x1]
+        
+        // CAS指令
+        0xC8A07C20,  // cas x0, x0, [x1]
+        0xC8E07C20,  // casa x0, x0, [x1]
+        0xC8A0FC20,  // casl x0, x0, [x1]
+        0xC8E0FC20,  // casal x0, x0, [x1]
+    };
+    
+    for (size_t i = 0; i < sizeof(test_cases) / sizeof(test_cases[0]); i++) {
+        test_single_instruction(test_cases[i], 0x8000 + i * 4);
+    }
+}
+
+/**
  * 测试详细信息输出
  */
 static void test_detailed_output(void) {
@@ -319,6 +446,9 @@ int main(int argc, char *argv[]) {
     test_arithmetic_instructions();
     test_branch_instructions();
     test_mrs_instructions();
+    test_cond_select_instructions();
+    test_bit_manipulation_instructions();
+    test_atomic_instructions();
     test_detailed_output();
     
     // 批量反汇编测试

@@ -7,89 +7,85 @@
 #include <stdio.h>
 #include <string.h>
 
+/* 寄存器名称表 */
+static const char *x_reg_names[] = {
+    "x0",  "x1",  "x2",  "x3",  "x4",  "x5",  "x6",  "x7",
+    "x8",  "x9",  "x10", "x11", "x12", "x13", "x14", "x15",
+    "x16", "x17", "x18", "x19", "x20", "x21", "x22", "x23",
+    "x24", "x25", "x26", "x27", "x28", "fp",  "lr",  "xzr"
+};
+
+static const char *w_reg_names[] = {
+    "w0",  "w1",  "w2",  "w3",  "w4",  "w5",  "w6",  "w7",
+    "w8",  "w9",  "w10", "w11", "w12", "w13", "w14", "w15",
+    "w16", "w17", "w18", "w19", "w20", "w21", "w22", "w23",
+    "w24", "w25", "w26", "w27", "w28", "w29", "w30", "wzr"
+};
+
 /**
- * 获取寄存器名称
+ * 获取寄存器名称（表驱动版本）
  */
 void get_register_name(uint8_t reg_num, reg_type_t reg_type, char *buffer) {
+    if (reg_num > 31) {
+        sprintf(buffer, "?%d", reg_num);
+        return;
+    }
+    
     switch (reg_type) {
         case REG_TYPE_X:
-            if (reg_num == 31) {
-                strcpy(buffer, "xzr");
-            } else if (reg_num == 30) {
-                strcpy(buffer, "lr");  // X30通常称为LR（链接寄存器）
-            } else if (reg_num == 29) {
-                strcpy(buffer, "fp");  // X29通常称为FP（帧指针）
-            } else {
-                sprintf(buffer, "x%d", reg_num);
-            }
+            strcpy(buffer, x_reg_names[reg_num]);
             break;
-            
         case REG_TYPE_W:
-            if (reg_num == 31) {
-                strcpy(buffer, "wzr");
-            } else {
-                sprintf(buffer, "w%d", reg_num);
-            }
+            strcpy(buffer, w_reg_names[reg_num]);
             break;
-            
         case REG_TYPE_SP:
             strcpy(buffer, "sp");
             break;
-            
         case REG_TYPE_XZR:
             strcpy(buffer, "xzr");
             break;
-            
         case REG_TYPE_WZR:
             strcpy(buffer, "wzr");
             break;
-            
         case REG_TYPE_V:
             sprintf(buffer, "v%d", reg_num);
             break;
-            
         case REG_TYPE_B:
             sprintf(buffer, "b%d", reg_num);
             break;
-            
         case REG_TYPE_H:
             sprintf(buffer, "h%d", reg_num);
             break;
-            
         case REG_TYPE_S:
             sprintf(buffer, "s%d", reg_num);
             break;
-            
         case REG_TYPE_D:
             sprintf(buffer, "d%d", reg_num);
             break;
-            
         case REG_TYPE_Q:
             sprintf(buffer, "q%d", reg_num);
             break;
-            
         default:
             sprintf(buffer, "?%d", reg_num);
             break;
     }
 }
 
+/* 扩展类型名称表 */
+static const char *extend_names[] = {
+    "uxtb", "uxth", "uxtw", "uxtx",
+    "sxtb", "sxth", "sxtw", "sxtx",
+    "lsl"
+};
+
 /**
- * 获取扩展类型名称
+ * 获取扩展类型名称（表驱动版本）
  */
 static const char* get_extend_name(extend_t extend) {
-    switch (extend) {
-        case EXTEND_UXTB: return "uxtb";
-        case EXTEND_UXTH: return "uxth";
-        case EXTEND_UXTW: return "uxtw";
-        case EXTEND_UXTX: return "uxtx";
-        case EXTEND_SXTB: return "sxtb";
-        case EXTEND_SXTH: return "sxth";
-        case EXTEND_SXTW: return "sxtw";
-        case EXTEND_SXTX: return "sxtx";
-        case EXTEND_LSL:  return "lsl";
-        default: return "";
+    if (extend <= EXTEND_LSL) {
+        return extend_names[extend];
     }
+    return "";
 }
 
 /**
@@ -462,6 +458,140 @@ void format_instruction(const disasm_inst_t *inst, char *buffer, size_t buffer_s
                 snprintf(operands, sizeof(operands), "%s, S%u_%u_C%u_C%u_%u",
                          reg_dst, op0, op1, crn, crm, op2);
             }
+            break;
+        }
+        
+        // 条件选择指令
+        case INST_TYPE_CSEL:
+        case INST_TYPE_CSINC:
+        case INST_TYPE_CSINV:
+        case INST_TYPE_CSNEG: {
+            static const char *cond_names[] = {
+                "eq", "ne", "cs", "cc", "mi", "pl", "vs", "vc",
+                "hi", "ls", "ge", "lt", "gt", "le", "al", "nv"
+            };
+            format_register_operand(inst, reg_dst, sizeof(reg_dst), inst->rd, inst->rd_type);
+            format_register_operand(inst, reg_src1, sizeof(reg_src1), inst->rn, inst->rn_type);
+            format_register_operand(inst, reg_src2, sizeof(reg_src2), inst->rm, inst->rm_type);
+            snprintf(operands, sizeof(operands), "%s, %s, %s, %s",
+                    reg_dst, reg_src1, reg_src2, cond_names[inst->cond & 0xF]);
+            break;
+        }
+        
+        // 条件选择别名（单寄存器形式）
+        case INST_TYPE_CSET:
+        case INST_TYPE_CSETM: {
+            static const char *cond_names[] = {
+                "eq", "ne", "cs", "cc", "mi", "pl", "vs", "vc",
+                "hi", "ls", "ge", "lt", "gt", "le", "al", "nv"
+            };
+            format_register_operand(inst, reg_dst, sizeof(reg_dst), inst->rd, inst->rd_type);
+            snprintf(operands, sizeof(operands), "%s, %s",
+                    reg_dst, cond_names[inst->cond & 0xF]);
+            break;
+        }
+        
+        // 条件递增/取反/取负
+        case INST_TYPE_CINC:
+        case INST_TYPE_CINV:
+        case INST_TYPE_CNEG: {
+            static const char *cond_names[] = {
+                "eq", "ne", "cs", "cc", "mi", "pl", "vs", "vc",
+                "hi", "ls", "ge", "lt", "gt", "le", "al", "nv"
+            };
+            format_register_operand(inst, reg_dst, sizeof(reg_dst), inst->rd, inst->rd_type);
+            format_register_operand(inst, reg_src1, sizeof(reg_src1), inst->rn, inst->rn_type);
+            snprintf(operands, sizeof(operands), "%s, %s, %s",
+                    reg_dst, reg_src1, cond_names[inst->cond & 0xF]);
+            break;
+        }
+        
+        // 位操作指令（1源）
+        case INST_TYPE_CLZ:
+        case INST_TYPE_CLS:
+        case INST_TYPE_RBIT:
+        case INST_TYPE_REV:
+        case INST_TYPE_REV16:
+        case INST_TYPE_REV32: {
+            format_register_operand(inst, reg_dst, sizeof(reg_dst), inst->rd, inst->rd_type);
+            format_register_operand(inst, reg_src1, sizeof(reg_src1), inst->rn, inst->rn_type);
+            snprintf(operands, sizeof(operands), "%s, %s", reg_dst, reg_src1);
+            break;
+        }
+        
+        // EXTR/ROR指令
+        case INST_TYPE_EXTR:
+        case INST_TYPE_ROR: {
+            format_register_operand(inst, reg_dst, sizeof(reg_dst), inst->rd, inst->rd_type);
+            format_register_operand(inst, reg_src1, sizeof(reg_src1), inst->rn, inst->rn_type);
+            if (inst->type == INST_TYPE_ROR) {
+                snprintf(operands, sizeof(operands), "%s, %s, #%lld",
+                        reg_dst, reg_src1, (long long)inst->imm);
+            } else {
+                format_register_operand(inst, reg_src2, sizeof(reg_src2), inst->rm, inst->rm_type);
+                snprintf(operands, sizeof(operands), "%s, %s, %s, #%lld",
+                        reg_dst, reg_src1, reg_src2, (long long)inst->imm);
+            }
+            break;
+        }
+        
+        // 独占加载指令
+        case INST_TYPE_LDXR:
+        case INST_TYPE_LDAXR:
+        case INST_TYPE_LDAR: {
+            format_register_operand(inst, reg_dst, sizeof(reg_dst), inst->rd, inst->rd_type);
+            char base_reg[16];
+            get_register_name(inst->rn, inst->rn_type, base_reg);
+            snprintf(operands, sizeof(operands), "%s, [%s]", reg_dst, base_reg);
+            break;
+        }
+        
+        // 独占存储指令
+        case INST_TYPE_STXR:
+        case INST_TYPE_STLXR: {
+            char status_reg[16];
+            get_register_name(inst->rm, inst->rm_type, status_reg);
+            format_register_operand(inst, reg_dst, sizeof(reg_dst), inst->rd, inst->rd_type);
+            char base_reg[16];
+            get_register_name(inst->rn, inst->rn_type, base_reg);
+            snprintf(operands, sizeof(operands), "%s, %s, [%s]", status_reg, reg_dst, base_reg);
+            break;
+        }
+        
+        // 存储-释放指令
+        case INST_TYPE_STLR: {
+            format_register_operand(inst, reg_dst, sizeof(reg_dst), inst->rd, inst->rd_type);
+            char base_reg[16];
+            get_register_name(inst->rn, inst->rn_type, base_reg);
+            snprintf(operands, sizeof(operands), "%s, [%s]", reg_dst, base_reg);
+            break;
+        }
+        
+        // 原子操作指令
+        case INST_TYPE_LDADD:
+        case INST_TYPE_LDCLR:
+        case INST_TYPE_LDEOR:
+        case INST_TYPE_LDSET:
+        case INST_TYPE_LDSMAX:
+        case INST_TYPE_LDSMIN:
+        case INST_TYPE_LDUMAX:
+        case INST_TYPE_LDUMIN:
+        case INST_TYPE_SWP: {
+            format_register_operand(inst, reg_src1, sizeof(reg_src1), inst->rm, inst->rm_type);
+            format_register_operand(inst, reg_dst, sizeof(reg_dst), inst->rd, inst->rd_type);
+            char base_reg[16];
+            get_register_name(inst->rn, inst->rn_type, base_reg);
+            snprintf(operands, sizeof(operands), "%s, %s, [%s]", reg_src1, reg_dst, base_reg);
+            break;
+        }
+        
+        // CAS指令
+        case INST_TYPE_CAS: {
+            format_register_operand(inst, reg_src1, sizeof(reg_src1), inst->rm, inst->rm_type);
+            format_register_operand(inst, reg_dst, sizeof(reg_dst), inst->rd, inst->rd_type);
+            char base_reg[16];
+            get_register_name(inst->rn, inst->rn_type, base_reg);
+            snprintf(operands, sizeof(operands), "%s, %s, [%s]", reg_src1, reg_dst, base_reg);
             break;
         }
         
