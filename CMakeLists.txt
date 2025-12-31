@@ -32,6 +32,7 @@ set(SOURCES
     arm64_disasm_loadstore.c
     arm64_disasm_dataproc.c
     arm64_disasm_branch.c
+    arm64_disasm_float.c
 )
 
 # 测试程序

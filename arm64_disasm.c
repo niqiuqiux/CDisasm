@@ -55,6 +55,13 @@ static bool dispatch_load_store(uint32_t inst, uint64_t addr, disasm_inst_t *res
     return decode_load_store(inst, addr, result);
 }
 
+/**
+ * 分发到浮点/SIMD解码
+ */
+static bool dispatch_fp_simd(uint32_t inst, uint64_t addr, disasm_inst_t *result) {
+    return decode_fp_simd(inst, addr, result);
+}
+
 /* ========== 顶层解码表 ========== */
 
 /*
@@ -86,6 +93,9 @@ const decode_entry_t top_level_decode_table[] = {
     
     /* 数据处理（寄存器）: bits[28:25] = 0101 或 1101 */
     DECODE_ENTRY_NAMED(0x0E000000, 0x0A000000, dispatch_data_proc_reg, "data_proc_reg"),
+    
+    /* 浮点/SIMD数据处理: bits[28:25] = 1111 或 0111 */
+    DECODE_ENTRY_NAMED(0x0E000000, 0x0E000000, dispatch_fp_simd, "fp_simd"),
 };
 
 const size_t top_level_decode_table_size = ARRAY_SIZE(top_level_decode_table);
@@ -127,6 +137,7 @@ bool disassemble_arm64(uint32_t raw_inst, uint64_t address, disasm_inst_t *inst)
     if (decode_data_proc_imm(raw_inst, address, inst)) return true;
     if (decode_data_proc_reg(raw_inst, address, inst)) return true;
     if (decode_load_store(raw_inst, address, inst)) return true;
+    if (decode_fp_simd(raw_inst, address, inst)) return true;
     
     return (inst->type != INST_TYPE_UNKNOWN);
 }

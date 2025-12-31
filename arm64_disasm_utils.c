@@ -598,6 +598,103 @@ void format_instruction(const disasm_inst_t *inst, char *buffer, size_t buffer_s
         case INST_TYPE_NOP:
             operands[0] = '\0';
             break;
+        
+        /* 浮点指令格式化 */
+        case INST_TYPE_FMOV:
+        case INST_TYPE_FABS:
+        case INST_TYPE_FNEG:
+        case INST_TYPE_FSQRT:
+        case INST_TYPE_FCVT:
+        case INST_TYPE_FRINT: {
+            char fp_dst[16], fp_src[16];
+            get_register_name(inst->rd, inst->rd_type, fp_dst);
+            if (inst->has_imm && strcmp(inst->mnemonic, "fmov") == 0) {
+                /* FMOV立即数 */
+                snprintf(operands, sizeof(operands), "%s, #%lld", fp_dst, (long long)inst->imm);
+            } else {
+                get_register_name(inst->rn, inst->rn_type, fp_src);
+                snprintf(operands, sizeof(operands), "%s, %s", fp_dst, fp_src);
+            }
+            break;
+        }
+        
+        case INST_TYPE_FADD:
+        case INST_TYPE_FSUB:
+        case INST_TYPE_FMUL:
+        case INST_TYPE_FDIV:
+        case INST_TYPE_FMAX:
+        case INST_TYPE_FMIN: {
+            char fp_dst[16], fp_src1[16], fp_src2[16];
+            get_register_name(inst->rd, inst->rd_type, fp_dst);
+            get_register_name(inst->rn, inst->rn_type, fp_src1);
+            get_register_name(inst->rm, inst->rm_type, fp_src2);
+            snprintf(operands, sizeof(operands), "%s, %s, %s", fp_dst, fp_src1, fp_src2);
+            break;
+        }
+        
+        case INST_TYPE_FMADD:
+        case INST_TYPE_FMSUB:
+        case INST_TYPE_FNMADD:
+        case INST_TYPE_FNMSUB: {
+            char fp_dst[16], fp_src1[16], fp_src2[16], fp_src3[16];
+            get_register_name(inst->rd, inst->rd_type, fp_dst);
+            get_register_name(inst->rn, inst->rn_type, fp_src1);
+            get_register_name(inst->rm, inst->rm_type, fp_src2);
+            get_register_name(inst->ra, inst->rd_type, fp_src3);
+            snprintf(operands, sizeof(operands), "%s, %s, %s, %s", fp_dst, fp_src1, fp_src2, fp_src3);
+            break;
+        }
+        
+        case INST_TYPE_FCMP:
+        case INST_TYPE_FCMPE: {
+            char fp_src1[16], fp_src2[16];
+            get_register_name(inst->rn, inst->rn_type, fp_src1);
+            if (inst->has_imm) {
+                snprintf(operands, sizeof(operands), "%s, #0.0", fp_src1);
+            } else {
+                get_register_name(inst->rm, inst->rm_type, fp_src2);
+                snprintf(operands, sizeof(operands), "%s, %s", fp_src1, fp_src2);
+            }
+            break;
+        }
+        
+        case INST_TYPE_FCCMP: {
+            static const char *cond_names[] = {
+                "eq", "ne", "cs", "cc", "mi", "pl", "vs", "vc",
+                "hi", "ls", "ge", "lt", "gt", "le", "al", "nv"
+            };
+            char fp_src1[16], fp_src2[16];
+            get_register_name(inst->rn, inst->rn_type, fp_src1);
+            get_register_name(inst->rm, inst->rm_type, fp_src2);
+            snprintf(operands, sizeof(operands), "%s, %s, #%lld, %s",
+                    fp_src1, fp_src2, (long long)inst->imm, cond_names[inst->cond & 0xF]);
+            break;
+        }
+        
+        case INST_TYPE_FCSEL: {
+            static const char *cond_names[] = {
+                "eq", "ne", "cs", "cc", "mi", "pl", "vs", "vc",
+                "hi", "ls", "ge", "lt", "gt", "le", "al", "nv"
+            };
+            char fp_dst[16], fp_src1[16], fp_src2[16];
+            get_register_name(inst->rd, inst->rd_type, fp_dst);
+            get_register_name(inst->rn, inst->rn_type, fp_src1);
+            get_register_name(inst->rm, inst->rm_type, fp_src2);
+            snprintf(operands, sizeof(operands), "%s, %s, %s, %s",
+                    fp_dst, fp_src1, fp_src2, cond_names[inst->cond & 0xF]);
+            break;
+        }
+        
+        case INST_TYPE_FCVTZS:
+        case INST_TYPE_FCVTZU:
+        case INST_TYPE_SCVTF:
+        case INST_TYPE_UCVTF: {
+            char dst[16], src[16];
+            get_register_name(inst->rd, inst->rd_type, dst);
+            get_register_name(inst->rn, inst->rn_type, src);
+            snprintf(operands, sizeof(operands), "%s, %s", dst, src);
+            break;
+        }
             
         default:
             snprintf(operands, sizeof(operands), "; raw=0x%08x", inst->raw);

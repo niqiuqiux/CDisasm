@@ -121,6 +121,31 @@ typedef enum {
     INST_TYPE_SVC,          // 系统调用
     INST_TYPE_HVC,          // 虚拟机调用
     INST_TYPE_SMC,          // 安全监控调用
+    /* 浮点指令 */
+    INST_TYPE_FMOV,         // 浮点移动
+    INST_TYPE_FADD,         // 浮点加法
+    INST_TYPE_FSUB,         // 浮点减法
+    INST_TYPE_FMUL,         // 浮点乘法
+    INST_TYPE_FDIV,         // 浮点除法
+    INST_TYPE_FABS,         // 浮点绝对值
+    INST_TYPE_FNEG,         // 浮点取负
+    INST_TYPE_FSQRT,        // 浮点平方根
+    INST_TYPE_FMADD,        // 浮点乘加
+    INST_TYPE_FMSUB,        // 浮点乘减
+    INST_TYPE_FNMADD,       // 浮点负乘加
+    INST_TYPE_FNMSUB,       // 浮点负乘减
+    INST_TYPE_FCMP,         // 浮点比较
+    INST_TYPE_FCMPE,        // 浮点比较（异常）
+    INST_TYPE_FCCMP,        // 浮点条件比较
+    INST_TYPE_FCSEL,        // 浮点条件选择
+    INST_TYPE_FCVT,         // 浮点精度转换
+    INST_TYPE_FCVTZS,       // 浮点转有符号整数（向零舍入）
+    INST_TYPE_FCVTZU,       // 浮点转无符号整数（向零舍入）
+    INST_TYPE_SCVTF,        // 有符号整数转浮点
+    INST_TYPE_UCVTF,        // 无符号整数转浮点
+    INST_TYPE_FRINT,        // 浮点舍入
+    INST_TYPE_FMAX,         // 浮点最大值
+    INST_TYPE_FMIN,         // 浮点最小值
 } inst_type_t;
 
 /* 寻址模式 */
@@ -238,6 +263,11 @@ bool decode_data_proc_reg(uint32_t inst, uint64_t addr, disasm_inst_t *result);
  * 解析分支指令
  */
 bool decode_branch(uint32_t inst, uint64_t addr, disasm_inst_t *result);
+
+/**
+ * 解析浮点/SIMD指令
+ */
+bool decode_fp_simd(uint32_t inst, uint64_t addr, disasm_inst_t *result);
 
 /**
  * 批量反汇编

@@ -398,6 +398,78 @@ static void test_atomic_instructions(void) {
 }
 
 /**
+ * 测试浮点指令
+ */
+static void test_float_instructions(void) {
+    printf("\n========== 测试浮点指令 ==========\n\n");
+    
+    uint32_t test_cases[] = {
+        // 浮点数据处理（1源）
+        0x1E204000,  // fmov s0, s0
+        0x1E60C000,  // fabs d0, d0
+        0x1E214020,  // fneg s0, s1
+        0x1E61C020,  // fsqrt d0, d1
+        0x1E22C000,  // fcvt d0, s0 (单精度转双精度)
+        0x1E624000,  // fcvt s0, d0 (双精度转单精度)
+        
+        // 浮点数据处理（2源）
+        0x1E200800,  // fmul s0, s0, s0
+        0x1E201800,  // fdiv s0, s0, s0
+        0x1E202800,  // fadd s0, s0, s0
+        0x1E203800,  // fsub s0, s0, s0
+        0x1E600820,  // fmul d0, d1, d0
+        0x1E601820,  // fdiv d0, d1, d0
+        0x1E602820,  // fadd d0, d1, d0
+        0x1E603820,  // fsub d0, d1, d0
+        0x1E204820,  // fmax s0, s1, s0
+        0x1E205820,  // fmin s0, s1, s0
+        
+        // 浮点数据处理（3源）
+        0x1F000000,  // fmadd s0, s0, s0, s0
+        0x1F008000,  // fmsub s0, s0, s0, s0
+        0x1F200000,  // fnmadd s0, s0, s0, s0
+        0x1F208000,  // fnmsub s0, s0, s0, s0
+        0x1F400020,  // fmadd d0, d1, d0, d0
+        
+        // 浮点比较
+        0x1E202000,  // fcmp s0, s0
+        0x1E202008,  // fcmp s0, #0.0
+        0x1E602020,  // fcmp d1, d0
+        0x1E602028,  // fcmp d1, #0.0
+        0x1E202010,  // fcmpe s0, s0
+        
+        // 浮点条件选择
+        0x1E200C00,  // fcsel s0, s0, s0, eq
+        0x1E610C20,  // fcsel d0, d1, d1, eq
+        
+        // 浮点/整数转换
+        0x9E380000,  // fcvtzs x0, s0
+        0x9E780000,  // fcvtzs x0, d0
+        0x1E380000,  // fcvtzs w0, s0
+        0x1E780000,  // fcvtzs w0, d0
+        0x9E390000,  // fcvtzu x0, s0
+        0x9E220000,  // scvtf s0, x0
+        0x9E620000,  // scvtf d0, x0
+        0x1E220000,  // scvtf s0, w0
+        0x9E230000,  // ucvtf s0, x0
+        
+        // FMOV (GPR <-> FP)
+        0x1E260000,  // fmov s0, w0
+        0x1E270000,  // fmov w0, s0
+        0x9E660000,  // fmov d0, x0
+        0x9E670000,  // fmov x0, d0
+        
+        // 浮点立即数
+        0x1E201000,  // fmov s0, #imm
+        0x1E601000,  // fmov d0, #imm
+    };
+    
+    for (size_t i = 0; i < sizeof(test_cases) / sizeof(test_cases[0]); i++) {
+        test_single_instruction(test_cases[i], 0x9000 + i * 4);
+    }
+}
+
+/**
  * 测试详细信息输出
  */
 static void test_detailed_output(void) {
@@ -449,6 +521,7 @@ int main(int argc, char *argv[]) {
     test_cond_select_instructions();
     test_bit_manipulation_instructions();
     test_atomic_instructions();
+    test_float_instructions();
     test_detailed_output();
     
     // 批量反汇编测试

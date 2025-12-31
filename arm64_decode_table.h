@@ -71,6 +71,10 @@ extern const size_t data_proc_reg_decode_table_size;
 extern const decode_entry_t load_store_decode_table[];
 extern const size_t load_store_decode_table_size;
 
+/* ========== 浮点/SIMD解码表声明 ========== */
+extern const decode_entry_t fp_simd_decode_table[];
+extern const size_t fp_simd_decode_table_size;
+
 /* ========== 顶层解码表声明 ========== */
 extern const decode_entry_t top_level_decode_table[];
 extern const size_t top_level_decode_table_size;
