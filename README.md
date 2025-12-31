@@ -1,6 +1,6 @@
 # ARM64 反汇编器
 
-一个功能完善的ARM64(AArch64)架构反汇编器，使用纯C语言实现。采用表驱动架构，支持解析常见的ARM64指令，包括加载/存储、数据处理、分支、条件选择、原子操作等指令。
+一个功能完善的ARM64(AArch64)架构反汇编器，使用纯C语言实现。采用表驱动架构，支持解析常见的ARM64指令，包括加载/存储、数据处理、分支、条件选择、原子操作、浮点/SIMD等指令。
 
 ## 特性
 
@@ -78,7 +78,42 @@
   - SWP - 原子交换
   - CAS - 比较并交换
 
-#### 7. 系统指令
+#### 7. 浮点指令 (Floating-Point)
+- **数据处理（1源）**
+  - FMOV - 浮点移动
+  - FABS - 浮点绝对值
+  - FNEG - 浮点取负
+  - FSQRT - 浮点平方根
+  - FCVT - 浮点精度转换（半精度/单精度/双精度）
+  - FRINT系列 - 浮点舍入（FRINTN/FRINTP/FRINTM/FRINTZ/FRINTA/FRINTX/FRINTI）
+- **数据处理（2源）**
+  - FADD/FSUB - 浮点加法/减法
+  - FMUL/FDIV - 浮点乘法/除法
+  - FMAX/FMIN - 浮点最大/最小值
+  - FMAXNM/FMINNM - 浮点最大/最小值（NaN处理）
+  - FNMUL - 浮点负乘法
+- **数据处理（3源）**
+  - FMADD - 浮点乘加：`Fd = Fa + Fn * Fm`
+  - FMSUB - 浮点乘减：`Fd = Fa - Fn * Fm`
+  - FNMADD - 浮点负乘加：`Fd = -Fa - Fn * Fm`
+  - FNMSUB - 浮点负乘减：`Fd = -Fa + Fn * Fm`
+- **浮点比较**
+  - FCMP/FCMPE - 浮点比较（与寄存器或#0.0比较）
+  - FCCMP/FCCMPE - 浮点条件比较
+- **浮点条件选择**
+  - FCSEL - 浮点条件选择
+- **浮点/整数转换**
+  - FCVTZS/FCVTZU - 浮点转有符号/无符号整数（向零舍入）
+  - FCVTNS/FCVTNU - 浮点转整数（向最近舍入）
+  - FCVTPS/FCVTPU - 浮点转整数（向正无穷舍入）
+  - FCVTMS/FCVTMU - 浮点转整数（向负无穷舍入）
+  - FCVTAS/FCVTAU - 浮点转整数（向最近偶数舍入）
+  - SCVTF/UCVTF - 有符号/无符号整数转浮点
+  - FMOV - GPR与FP寄存器间移动
+- **浮点立即数**
+  - FMOV - 浮点立即数加载
+
+#### 8. 系统指令
 - **NOP** - 空操作
 - **YIELD/WFE/WFI/SEV/SEVL** - 多核同步指令
 - **MRS** - 读取系统寄存器
@@ -187,7 +222,10 @@ typedef struct {
     
     // 寄存器
     uint8_t rd, rn, rm, rt2;    // 寄存器编号
-    reg_type_t rd_type;         // 寄存器类型
+    uint8_t ra;                 // 第三操作数寄存器（用于MADD/FMADD等）
+    reg_type_t rd_type;         // 目标寄存器类型
+    reg_type_t rn_type;         // 源寄存器1类型
+    reg_type_t rm_type;         // 源寄存器2类型
     
     // 立即数
     int64_t imm;                // 立即数值（已符号扩展）
@@ -196,11 +234,35 @@ typedef struct {
     // 寻址模式
     addr_mode_t addr_mode;      // 寻址模式
     
+    // 条件码
+    uint8_t cond;               // 条件码（用于条件指令）
+    
     // 其他
     extend_t extend_type;       // 扩展/移位类型
     uint8_t shift_amount;       // 移位量
     bool is_64bit;              // 是否为64位操作
+    bool set_flags;             // 是否设置标志位
 } disasm_inst_t;
+```
+
+### reg_type_t
+
+寄存器类型枚举：
+
+```c
+typedef enum {
+    REG_TYPE_X,      // 64位通用寄存器 X0-X30
+    REG_TYPE_W,      // 32位通用寄存器 W0-W30
+    REG_TYPE_SP,     // 栈指针
+    REG_TYPE_XZR,    // 零寄存器 XZR
+    REG_TYPE_WZR,    // 零寄存器 WZR
+    REG_TYPE_V,      // SIMD/FP向量寄存器
+    REG_TYPE_B,      // 8位 SIMD寄存器
+    REG_TYPE_H,      // 16位 SIMD寄存器（半精度浮点）
+    REG_TYPE_S,      // 32位 SIMD寄存器（单精度浮点）
+    REG_TYPE_D,      // 64位 SIMD寄存器（双精度浮点）
+    REG_TYPE_Q       // 128位 SIMD寄存器
+} reg_type_t;
 ```
 
 ## 使用示例
@@ -277,6 +339,28 @@ void analyze_function(const uint32_t *code, size_t count, uint64_t addr) {
 }
 ```
 
+### 示例4：浮点指令反汇编
+
+```c
+#include "arm64_disasm.h"
+#include <stdio.h>
+
+int main() {
+    uint32_t fp_code[] = {
+        0x1E202800,  // fadd s0, s0, s0
+        0x1E600820,  // fmul d0, d1, d0
+        0x1F000000,  // fmadd s0, s0, s0, s0
+        0x1E202000,  // fcmp s0, s0
+        0x9E380000,  // fcvtzs x0, s0
+        0x9E220000,  // scvtf s0, x0
+        0x1E260000,  // fmov s0, w0
+    };
+    
+    disassemble_block(fp_code, 7, 0x1000);
+    return 0;
+}
+```
+
 ## 技术细节
 
 ### 指令编码格式
@@ -308,8 +392,9 @@ ARM64指令都是32位定长编码，通过不同的位字段来区分指令类�
 
 ## 限制和注意事项
 
-1. **SIMD/FP指令**：当前版本对SIMD和浮点指令的支持有限
-2. **加密扩展**：不支持加密扩展指令
+1. **高级SIMD指令**：向量SIMD指令（如SIMD向量运算）支持有限，主要支持标量浮点操作
+2. **加密扩展**：不支持加密扩展指令（AES、SHA等）
+3. **SVE/SVE2**：不支持可伸缩向量扩展指令
 
 ## 贡献
 
