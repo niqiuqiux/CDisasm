@@ -290,8 +290,8 @@ static bool decode_add_sub_shifted_reg(uint32_t inst, uint64_t addr, disasm_inst
     
     switch (shift) {
         case 0: result->extend_type = EXTEND_LSL; break;
-        case 1: result->extend_type = EXTEND_LSL + 1; break;
-        case 2: result->extend_type = EXTEND_LSL + 2; break;
+        case 1: result->extend_type = EXTEND_LSR; break;
+        case 2: result->extend_type = EXTEND_ASR; break;
         default: return false;
     }
     
@@ -351,7 +351,8 @@ static bool decode_logical_shifted_reg(uint32_t inst, uint64_t addr, disasm_inst
     result->rn_type = sf ? REG_TYPE_X : REG_TYPE_W;
     result->rm_type = sf ? REG_TYPE_X : REG_TYPE_W;
     
-    result->extend_type = EXTEND_LSL + shift;
+    static const extend_t shift_to_extend[] = { EXTEND_LSL, EXTEND_LSR, EXTEND_ASR, EXTEND_ROR };
+    result->extend_type = shift_to_extend[shift];
     
     uint8_t op_code = (opc << 1) | N;
     switch (op_code) {
@@ -454,7 +455,7 @@ static bool decode_data_proc_2src(uint32_t inst, uint64_t addr, disasm_inst_t *r
             break;
         case 0x0B:
             SAFE_STRCPY(result->mnemonic, "ror");
-            result->type = INST_TYPE_ASR + 1;
+            result->type = INST_TYPE_ROR;
             break;
         default:
             return false;

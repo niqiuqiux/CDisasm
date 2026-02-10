@@ -20,16 +20,6 @@ static reg_type_t get_fp_reg_type(uint8_t ftype) {
     }
 }
 
-/* 获取浮点类型名称后缀 */
-static const char* get_fp_suffix(uint8_t ftype) {
-    switch (ftype) {
-        case 0: return "";   /* 单精度无后缀或用s */
-        case 1: return "";   /* 双精度无后缀或用d */
-        case 3: return "";   /* 半精度 */
-        default: return "";
-    }
-}
-
 /* ========== 浮点数据处理（1源）========== */
 
 /**

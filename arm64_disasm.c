@@ -15,6 +15,8 @@
  */
 bool decode_with_table(const decode_entry_t *table, size_t table_size,
                        uint32_t inst, uint64_t addr, disasm_inst_t *result) {
+    if (!table || !result) return false;
+
     for (size_t i = 0; i < table_size; i++) {
         if ((inst & table[i].mask) == table[i].value) {
             if (table[i].decoder(inst, addr, result)) {

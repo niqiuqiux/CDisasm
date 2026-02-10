@@ -170,7 +170,10 @@ typedef enum {
     EXTEND_SXTH = 5,    // 有符号扩展半字
     EXTEND_SXTW = 6,    // 有符号扩展字
     EXTEND_SXTX = 7,    // 有符号扩展双字
-    EXTEND_LSL = 8      // 逻辑左移
+    EXTEND_LSL = 8,     // 逻辑左移
+    EXTEND_LSR = 9,     // 逻辑右移
+    EXTEND_ASR = 10,    // 算术右移
+    EXTEND_ROR = 11     // 循环右移
 } extend_t;
 
 /* 反汇编指令结构 */
@@ -215,7 +218,7 @@ typedef struct {
 /* 位操作宏 */
 #define BITS(val, start, end)   (((val) >> (start)) & ((1ULL << ((end) - (start) + 1)) - 1))
 #define BIT(val, pos)           (((val) >> (pos)) & 1)
-#define SIGN_EXTEND(val, bits)  (((int64_t)(val) << (64 - (bits))) >> (64 - (bits)))
+#define SIGN_EXTEND(val, bits)  (((bits) == 0) ? 0 : (((int64_t)(val) << (64 - (bits))) >> (64 - (bits))))
 
 /* 函数原型 */
 
@@ -276,6 +279,13 @@ bool decode_fp_simd(uint32_t inst, uint64_t addr, disasm_inst_t *result);
  * @param start_addr 起始地址
  */
 void disassemble_block(const uint32_t *code, size_t count, uint64_t start_addr);
+
+/**
+ * 从内存中反汇编指定范围
+ * @param start_addr 起始内存地址
+ * @param byte_count 字节数（必须是4的倍数）
+ */
+void disassemble_from_memory(const void *start_addr, size_t byte_count);
 
 /**
  * 获取分支指令的目标地址

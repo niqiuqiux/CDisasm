@@ -26,6 +26,8 @@ static const char *w_reg_names[] = {
  * 获取寄存器名称（表驱动版本）
  */
 void get_register_name(uint8_t reg_num, reg_type_t reg_type, char *buffer) {
+    if (!buffer) return;
+
     if (reg_num > 31) {
         sprintf(buffer, "?%d", reg_num);
         return;
@@ -75,14 +77,14 @@ void get_register_name(uint8_t reg_num, reg_type_t reg_type, char *buffer) {
 static const char *extend_names[] = {
     "uxtb", "uxth", "uxtw", "uxtx",
     "sxtb", "sxth", "sxtw", "sxtx",
-    "lsl"
+    "lsl", "lsr", "asr", "ror"
 };
 
 /**
  * 获取扩展类型名称（表驱动版本）
  */
 static const char* get_extend_name(extend_t extend) {
-    if (extend <= EXTEND_LSL) {
+    if (extend <= EXTEND_ROR) {
         return extend_names[extend];
     }
     return "";
@@ -219,12 +221,23 @@ static const char* get_system_reg_name(uint8_t op0, uint8_t op1,
     return NULL;
 }
 
+/* 条件码名称表 */
+static const char *cond_names[] = {
+    "eq", "ne", "cs", "cc", "mi", "pl", "vs", "vc",
+    "hi", "ls", "ge", "lt", "gt", "le", "al", "nv"
+};
+
 /**
  * 将反汇编指令格式化为字符串
  */
 void format_instruction(const disasm_inst_t *inst, char *buffer, size_t buffer_size) {
+    if (!inst || !buffer || buffer_size == 0) {
+        if (buffer && buffer_size > 0) buffer[0] = '\0';
+        return;
+    }
+
     char operands[256] = {0};
-    char reg_dst[16], reg_src1[16], reg_src2[16], reg_t2[16];
+    char reg_dst[16] = {0}, reg_src1[16] = {0}, reg_src2[16] = {0}, reg_t2[16] = {0};
     
     // 根据指令类型格式化操作数
     switch (inst->type) {
@@ -466,10 +479,6 @@ void format_instruction(const disasm_inst_t *inst, char *buffer, size_t buffer_s
         case INST_TYPE_CSINC:
         case INST_TYPE_CSINV:
         case INST_TYPE_CSNEG: {
-            static const char *cond_names[] = {
-                "eq", "ne", "cs", "cc", "mi", "pl", "vs", "vc",
-                "hi", "ls", "ge", "lt", "gt", "le", "al", "nv"
-            };
             format_register_operand(inst, reg_dst, sizeof(reg_dst), inst->rd, inst->rd_type);
             format_register_operand(inst, reg_src1, sizeof(reg_src1), inst->rn, inst->rn_type);
             format_register_operand(inst, reg_src2, sizeof(reg_src2), inst->rm, inst->rm_type);
@@ -481,10 +490,6 @@ void format_instruction(const disasm_inst_t *inst, char *buffer, size_t buffer_s
         // 条件选择别名（单寄存器形式）
         case INST_TYPE_CSET:
         case INST_TYPE_CSETM: {
-            static const char *cond_names[] = {
-                "eq", "ne", "cs", "cc", "mi", "pl", "vs", "vc",
-                "hi", "ls", "ge", "lt", "gt", "le", "al", "nv"
-            };
             format_register_operand(inst, reg_dst, sizeof(reg_dst), inst->rd, inst->rd_type);
             snprintf(operands, sizeof(operands), "%s, %s",
                     reg_dst, cond_names[inst->cond & 0xF]);
@@ -495,10 +500,6 @@ void format_instruction(const disasm_inst_t *inst, char *buffer, size_t buffer_s
         case INST_TYPE_CINC:
         case INST_TYPE_CINV:
         case INST_TYPE_CNEG: {
-            static const char *cond_names[] = {
-                "eq", "ne", "cs", "cc", "mi", "pl", "vs", "vc",
-                "hi", "ls", "ge", "lt", "gt", "le", "al", "nv"
-            };
             format_register_operand(inst, reg_dst, sizeof(reg_dst), inst->rd, inst->rd_type);
             format_register_operand(inst, reg_src1, sizeof(reg_src1), inst->rn, inst->rn_type);
             snprintf(operands, sizeof(operands), "%s, %s, %s",
@@ -659,10 +660,6 @@ void format_instruction(const disasm_inst_t *inst, char *buffer, size_t buffer_s
         }
         
         case INST_TYPE_FCCMP: {
-            static const char *cond_names[] = {
-                "eq", "ne", "cs", "cc", "mi", "pl", "vs", "vc",
-                "hi", "ls", "ge", "lt", "gt", "le", "al", "nv"
-            };
             char fp_src1[16], fp_src2[16];
             get_register_name(inst->rn, inst->rn_type, fp_src1);
             get_register_name(inst->rm, inst->rm_type, fp_src2);
@@ -672,10 +669,6 @@ void format_instruction(const disasm_inst_t *inst, char *buffer, size_t buffer_s
         }
         
         case INST_TYPE_FCSEL: {
-            static const char *cond_names[] = {
-                "eq", "ne", "cs", "cc", "mi", "pl", "vs", "vc",
-                "hi", "ls", "ge", "lt", "gt", "le", "al", "nv"
-            };
             char fp_dst[16], fp_src1[16], fp_src2[16];
             get_register_name(inst->rd, inst->rd_type, fp_dst);
             get_register_name(inst->rn, inst->rn_type, fp_src1);
@@ -713,6 +706,8 @@ void format_instruction(const disasm_inst_t *inst, char *buffer, size_t buffer_s
  * 打印单条指令
  */
 void print_instruction(const disasm_inst_t *inst) {
+    if (!inst) return;
+
     char buffer[256];
     format_instruction(inst, buffer, sizeof(buffer));
     printf("0x%016llx:  %08x  %s\n", 
