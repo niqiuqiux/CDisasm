@@ -8,6 +8,10 @@
 
 #include "arm64_disasm.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* 解码器函数类型 */
 typedef bool (*decode_func_t)(uint32_t inst, uint64_t addr, disasm_inst_t *result);
 
@@ -92,5 +96,9 @@ extern const size_t top_level_decode_table_size;
  */
 bool decode_with_table(const decode_entry_t *table, size_t table_size,
                        uint32_t inst, uint64_t addr, disasm_inst_t *result);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ARM64_DECODE_TABLE_H */

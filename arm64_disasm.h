@@ -2,7 +2,14 @@
 #define ARM64_DISASM_H
 
 #include <stdint.h>
+#include <stddef.h>
+#ifndef __cplusplus
 #include <stdbool.h>
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* 寄存器类型 */
 typedef enum {
@@ -338,6 +345,10 @@ void print_instruction_details(const disasm_inst_t *inst);
  * @param inst 反汇编指令结构
  */
 void print_instruction(const disasm_inst_t *inst);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ARM64_DISASM_H */
 

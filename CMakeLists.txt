@@ -4,7 +4,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY
     ${CMAKE_SOURCE_DIR}/outputs/
 ) 
 
-project(Cdisasm VERSION 0.1.0 LANGUAGES C) 
+project(Cdisasm VERSION 0.1.0 LANGUAGES C CXX) 
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -44,3 +44,11 @@ add_executable(test_disasm
 # 可选：构建静态库
 add_library(arm64_disasm STATIC ${SOURCES})
 target_include_directories(arm64_disasm PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+set_target_properties(arm64_disasm PROPERTIES
+    LINKER_LANGUAGE C
+    PUBLIC_HEADER "${HEADERS}"
+)
+
+# C++兼容性测试
+add_executable(test_cpp_compat test_cpp_compat.cpp)
+target_link_libraries(test_cpp_compat PRIVATE arm64_disasm)
